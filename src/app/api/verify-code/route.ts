@@ -1,13 +1,32 @@
 import dbConnect from "@/lib/dbConnect";
 import UserModel from "@/model/User";
 import { z } from 'zod'
-import { verifySchema } from "@/schemas/verifySchema";
+import { verifyCodeSchema } from "@/schemas/verifyCodeSchema";
+
+const VerifyCodeSchema = z.object({
+    code: verifyCodeSchema,
+})
 
 export async function POST(request: Request) {
     await dbConnect()
 
     try {
         const { username, code } = await request.json()
+
+        // validate with zod
+        const resultOfZod = VerifyCodeSchema.safeParse(code);
+        console.log(resultOfZod);
+
+        if (!resultOfZod.success) {
+            const zodErrors = z.treeifyError(resultOfZod.error);
+
+            const verifyCodeZodErrors: string[] = zodErrors.properties?.code?.errors || [];
+
+            return Response.json({
+                success: false,
+                message: verifyCodeZodErrors
+            }, { status: 500 })
+        }
 
         const decodedUsername = decodeURIComponent(username);
         const user = await UserModel.findOne({ username: decodedUsername })
